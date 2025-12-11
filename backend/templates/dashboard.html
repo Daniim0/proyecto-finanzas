@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Finanzas Personales</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body class="dashboard-page">
+    <!-- Navegación -->
+    <nav class="dashboard-nav">
+        <div class="container nav-content">
+            <div class="nav-brand">
+                📊 Dashboard Financiero
+            </div>
+            <div class="nav-user">
+                <span>Bienvenido</span>
+                <a href="/logout" class="btn btn-danger">Cerrar Sesión</a>
+            </div>
+        </div>
+    </nav>
+    
+    <main class="container">
+        <!-- Estadísticas -->
+        <section class="stats-grid">
+            <div class="stat-card income">
+                <div class="stat-title">Total Ingresos</div>
+                <div class="stat-amount">${{ "{:,.2f}".format(total_ingresos) }}</div>
+            </div>
+            
+            <div class="stat-card expense">
+                <div class="stat-title">Total Gastos</div>
+                <div class="stat-amount">${{ "{:,.2f}".format(total_gastos) }}</div>
+            </div>
+            
+            <div class="stat-card balance">
+                <div class="stat-title">Balance Actual</div>
+                <div class="stat-amount">
+                    {% if balance >= 0 %}
+                        <span class="text-green">${{ "{:,.2f}".format(balance) }}</span>
+                    {% else %}
+                        <span class="text-red">${{ "{:,.2f}".format(balance) }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+        
+        <!-- Formulario para nueva transacción -->
+        <section class="card transaction-form-card">
+            <h2>➕ Nueva Transacción</h2>
+            <form method="POST" action="/transaccion">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="tipo">Tipo:</label>
+                        <select id="tipo" name="tipo" required>
+                            <option value="ingreso">Ingreso</option>
+                            <option value="gasto">Gasto</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="monto">Monto ($):</label>
+                        <input type="number" id="monto" name="monto" step="0.01" min="0.01" required placeholder="0.00">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="categoria">Categoría:</label>
+                        <select id="categoria" name="categoria" required>
+                            <option value="salario">Salario</option>
+                            <option value="freelance">Freelance</option>
+                            <option value="inversiones">Inversiones</option>
+                            <option value="comida">Comida</option>
+                            <option value="transporte">Transporte</option>
+                            <option value="entretenimiento">Entretenimiento</option>
+                            <option value="servicios">Servicios</option>
+                            <option value="otros">Otros</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="descripcion">Descripción (opcional):</label>
+                    <input type="text" id="descripcion" name="descripcion" placeholder="Ej: Pago de luz, Venta producto, etc.">
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Agregar Transacción</button>
+            </form>
+        </section>
+        
+        <!-- Lista de transacciones -->
+        <section class="card transactions-card">
+            <h2>📋 Historial de Transacciones</h2>
+            
+            {% if transacciones and transacciones|length > 0 %}
+            <div class="table-responsive">
+                <table class="transactions-table">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Tipo</th>
+                            <th>Categoría</th>
+                            <th>Descripción</th>
+                            <th>Monto</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for trans in transacciones %}
+                        <tr class="transaction-row" data-trans-id="{{ trans.id }}" data-trans-tipo="{{ trans.tipo }}" data-trans-monto="{{ trans.monto }}" data-trans-categoria="{{ trans.categoria }}" data-trans-descripcion="{{ trans.descripcion if trans.descripcion else '' }}">
+                            <td class="transaction-date">
+                                {% if trans.fecha %}
+                                    {{ trans.fecha.strftime('%d/%m/%Y %H:%M') }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="transaction-type-badge {% if trans.tipo == 'ingreso' %}badge-income{% else %}badge-expense{% endif %}">
+                                    {% if trans.tipo == 'ingreso' %}
+                                        🟢 Ingreso
+                                    {% else %}
+                                        🔴 Gasto
+                                    {% endif %}
+                                </span>
+                            </td>
+                            <td class="transaction-category">{{ trans.categoria }}</td>
+                            <td class="transaction-description">{{ trans.descripcion if trans.descripcion else '-' }}</td>
+                            <td class="transaction-amount {% if trans.tipo == 'ingreso' %}amount-income{% else %}amount-expense{% endif %}">
+                                ${{ "{:,.2f}".format(trans.monto) }}
+                            </td>
+                            <td class="transaction-actions">
+                                <div class="actions-buttons">
+                                    <button type="button" class="btn-edit" onclick="openEditModal(this)">
+                                        ✏️ Editar
+                                    </button>
+                                    
+                                    <form method="POST" action="/transaccion/{{ trans.id }}/eliminar" class="delete-form">
+                                        <button type="submit" class="btn-delete" onclick="return confirm('¿Seguro que quieres eliminar esta transacción?')">
+                                            🗑️ Eliminar
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">📭</div>
+                <h3>No hay transacciones registradas</h3>
+                <p>¡Agrega tu primera transacción usando el formulario arriba!</p>
+            </div>
+            {% endif %}
+        </section>
+    </main>
+    
+    <!-- Modal para editar transacción -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeEditModal()">&times;</button>
+            <h2>✏️ Editar Transacción</h2>
+            <form id="editForm" method="POST">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit_tipo">Tipo:</label>
+                        <select id="edit_tipo" name="tipo" required>
+                            <option value="ingreso">Ingreso</option>
+                            <option value="gasto">Gasto</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit_monto">Monto ($):</label>
+                        <input type="number" id="edit_monto" name="monto" step="0.01" min="0.01" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit_categoria">Categoría:</label>
+                        <select id="edit_categoria" name="categoria" required>
+                            <option value="salario">Salario</option>
+                            <option value="freelance">Freelance</option>
+                            <option value="inversiones">Inversiones</option>
+                            <option value="comida">Comida</option>
+                            <option value="transporte">Transporte</option>
+                            <option value="entretenimiento">Entretenimiento</option>
+                            <option value="servicios">Servicios</option>
+                            <option value="otros">Otros</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit_descripcion">Descripción:</label>
+                    <input type="text" id="edit_descripcion" name="descripcion">
+                </div>
+                
+                <input type="hidden" id="edit_id" name="trans_id">
+                
+                <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        // Función para abrir el modal de edición
+        function openEditModal(button) {
+            const row = button.closest('tr');
+            const id = row.dataset.transId;
+            const tipo = row.dataset.transTipo;
+            const monto = row.dataset.transMonto;
+            const categoria = row.dataset.transCategoria;
+            const descripcion = row.dataset.transDescripcion;
+            
+            document.getElementById('edit_id').value = id;
+            document.getElementById('edit_tipo').value = tipo;
+            document.getElementById('edit_monto').value = monto;
+            document.getElementById('edit_categoria').value = categoria;
+            document.getElementById('edit_descripcion').value = descripcion || '';
+            
+            // Configurar la acción del formulario
+            document.getElementById('editForm').action = '/transaccion/' + id + '/editar';
+            
+            // Mostrar el modal
+            document.getElementById('editModal').style.display = 'flex';
+        }
+        
+        // Función para cerrar el modal
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+        
+        // Cerrar modal al hacer clic fuera
+        document.getElementById('editModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeEditModal();
+            }
+        });
+        
+        // Validación del formulario
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.querySelector('form[action="/transaccion"]');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    const monto = document.getElementById('monto');
+                    if (monto && parseFloat(monto.value) <= 0) {
+                        e.preventDefault();
+                        alert('El monto debe ser mayor a 0');
+                        monto.focus();
+                    }
+                });
+            }
+            
+            // Validación del formulario de edición
+            const editForm = document.getElementById('editForm');
+            if (editForm) {
+                editForm.addEventListener('submit', function(e) {
+                    const monto = document.getElementById('edit_monto');
+                    if (monto && parseFloat(monto.value) <= 0) {
+                        e.preventDefault();
+                        alert('El monto debe ser mayor a 0');
+                        monto.focus();
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
